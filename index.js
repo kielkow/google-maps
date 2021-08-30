@@ -4,26 +4,36 @@ const json2xls = require('json2xls');
 
 const args = process.argv.slice(2);
 const key = args[0];
-const location = args[1];
+const address = args[1];
 const radius = args[2];
 const type = args[3];
 
-searchPlaces(key, location, radius, type);
+searchPlaces(key, address, radius, type);
 
-async function searchPlaces(key, location, radius, type) {
+async function searchPlaces(key, address, radius, type) {
     try {
-        const { data } = await axios({
+        const location = address.split(" ").join("+");
+
+        const geolocationResponse = await axios({
             method: 'get',
-            url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?key=${key}&location=${location}&radius=${radius}&type=${type}`,
+            url: `https://maps.googleapis.com/maps/api/geocode/json?address=${location}&key=${key}`,
             headers: {}
         });
 
-        const { results } = data;
+        const coordinates = `${geolocationResponse.data.results[0].geometry.location.lat}, ${geolocationResponse.data.results[0].geometry.location.lng}`;
+
+        const nearbySearchResponse = await axios({
+            method: 'get',
+            url: `https://maps.googleapis.com/maps/api/place/nearbysearch/json?key=${key}&location=${coordinates}&radius=${radius}&type=${type}`,
+            headers: {}
+        });
+
+        const { results } = nearbySearchResponse.data;
 
         let places = [];
 
         for (const result of results) {
-            const { data } = await axios({
+            const placeDetailsResponse = await axios({
                 method: 'get',
                 url: `https://maps.googleapis.com/maps/api/place/details/json?place_id=${result.place_id}&key=${key}`,
                 headers: {}
@@ -35,7 +45,7 @@ async function searchPlaces(key, location, radius, type) {
                 formatted_phone_number,
                 rating,
                 website
-            } = data.result;
+            } = placeDetailsResponse.data.result;
 
             places.push({
                 name,
